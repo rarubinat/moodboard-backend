@@ -1,55 +1,57 @@
-// Importamos Express, el framework que nos permite crear el servidor backend
+require('dotenv').config();
 const express = require('express');
-
-// Importamos CORS para permitir peticiones desde otro dominio/puerto (como Angular en localhost:4200)
 const cors = require('cors');
+const { Pool } = require('pg');
 
-// Creamos una app de Express
 const app = express();
+const PORT = process.env.PORT || 3000;
 
-// Definimos el puerto donde se ejecutará el servidor
-const PORT = 3000;
+// Conexión a PostgreSQL usando la variable de entorno
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }, // necesario para Supabase
+});
 
-// Middleware que habilita CORS (necesario si frontend y backend están en puertos distintos)
 app.use(cors());
-
-// Middleware para que Express pueda leer cuerpos de tipo JSON en las peticiones
 app.use(express.json());
 
-// Array en memoria donde guardamos los ítems del moodboard (esto se reinicia si el servidor se apaga)
-let moodboardItems = [];
-
 /**
- * Ruta GET que devuelve todos los ítems del moodboard
- * Ejemplo: GET http://localhost:3000/api/items
+ * GET /api/items
+ * Devuelve todos los ítems del moodboard desde la base de datos
  */
-app.get('/api/items', (req, res) => {
-  res.json(moodboardItems); // Respondemos con el array actual de ítems
+app.get('/api/items', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM moodboard_items ORDER BY id DESC');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error al obtener ítems:', error);
+    res.status(500).json({ error: 'Error al obtener los ítems' });
+  }
 });
 
 /**
- * Ruta POST para agregar un nuevo ítem al moodboard
- * Ejemplo: POST http://localhost:3000/api/items con body JSON
+ * POST /api/items
+ * Agrega un nuevo ítem al moodboard en la base de datos
  */
-app.post('/api/items', (req, res) => {
-  const newItem = req.body; // Leemos el nuevo ítem enviado desde el frontend
+app.post('/api/items', async (req, res) => {
+  const { type, content } = req.body;
 
-  // Validamos que el ítem tenga al menos 'type' y 'content'
-  if (!newItem || !newItem.type || !newItem.content) {
+  if (!type || !content) {
     return res.status(400).json({ error: 'type y content son obligatorios' });
   }
 
-  // Asignamos un ID único al nuevo ítem usando el timestamp actual
-  newItem.id = Date.now();
-
-  // Lo agregamos al array en memoria
-  moodboardItems.push(newItem);
-
-  // Devolvemos el nuevo ítem con un código 201 (creado)
-  res.status(201).json(newItem);
+  try {
+    const result = await pool.query(
+      'INSERT INTO moodboard_items (type, content) VALUES ($1, $2) RETURNING *',
+      [type, content]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error al agregar ítem:', error);
+    res.status(500).json({ error: 'Error al agregar el ítem' });
+  }
 });
 
-// Iniciamos el servidor en el puerto definido y mostramos un mensaje en consola
 app.listen(PORT, () => {
   console.log(`✅ Servidor backend escuchando en http://localhost:${PORT}`);
 });
