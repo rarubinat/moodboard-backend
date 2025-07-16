@@ -36,6 +36,7 @@ This is a simple backend for a **moodboard** (inspiration board) application. It
     git add .
     git commit -m
     git pull origin master --rebase
+    git push
    ```
 
 ---
@@ -83,12 +84,10 @@ CORS is enabled to allow frontend apps (e.g. Angular on localhost:4200) to inter
 ## 🧪 Development Tips
 - Use tools like Postman or curl to test endpoints with **GET /api/items** and **POST /api/items** using json.
 
-      ´´´bash
       {
       "type": "image",
       "content": "https://example.com/image.jpg"
       }
-      ´´´
 
 - Log database errors to debug connectivity issues.
 
