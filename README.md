@@ -51,10 +51,15 @@ This backend uses Supabase as a hosted PostgreSQL database to persist moodboard 
 The following SQL command was used to create the **moodboard_items** table:
    ```bash
    CREATE TABLE moodboard_items (
-   id SERIAL PRIMARY KEY,
-   type TEXT NOT NULL,
-   content TEXT NOT NULL
-   );
+  id SERIAL PRIMARY KEY,
+  type TEXT NOT NULL,                -- idea, research, task, code, etc.
+  subtype TEXT,                      -- optional: e.g., UI, UX, frontend, backend
+  status TEXT DEFAULT 'draft',       -- e.g., draft, in_progress, completed, etc.
+  title TEXT,                        -- optional short title
+  content TEXT NOT NULL,             -- main content: text, URL, etc.
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+  );
    ```
 
 ## 🔌 Integration
