@@ -34,7 +34,7 @@ app.get('/api/items', async (req, res) => {
  * Agrega un nuevo ítem al moodboard en la base de datos
  */
 app.post('/api/items', async (req, res) => {
-  const { type, content } = req.body;
+  const { type, content, title, status, subtype } = req.body;
 
   if (!type || !content) {
     return res.status(400).json({ error: 'type y content son obligatorios' });
@@ -42,8 +42,10 @@ app.post('/api/items', async (req, res) => {
 
   try {
     const result = await pool.query(
-      'INSERT INTO moodboard_items (type, content) VALUES ($1, $2) RETURNING *',
-      [type, content]
+      `INSERT INTO moodboard_items (type, content, title, status, subtype)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [type, content, title || null, status || null, subtype || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
