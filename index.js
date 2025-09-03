@@ -26,7 +26,7 @@ app.get('/api/items', async (req, res) => {
   const { data, error } = await supabase
     .from('moodboard_items')
     .select('*')
-    .order('createdAt', { ascending: false });
+    .order('created_at', { ascending: false });
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
 });
