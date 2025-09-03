@@ -20,6 +20,8 @@ This is a simple backend for a **moodboard** (inspiration board) application. It
 ---
 
 ## 📦 Local development
+npm start
+
 
 1. Install
    ```bash
