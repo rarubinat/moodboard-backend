@@ -13,8 +13,8 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
   : ['*'];
 
 app.use(cors({
-  origin: function(origin, callback) {
-    // Permite solicitudes sin origen (Postman, servidores)
+  origin: function (origin, callback) {
+    // Permite solicitudes sin origen (Postman, servidores internos, etc.)
     if (!origin) return callback(null, true);
 
     if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
