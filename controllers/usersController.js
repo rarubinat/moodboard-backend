@@ -7,7 +7,7 @@ async function getUsers(req, res) {
   try {
     const { data, error } = await supabase
       .from('moodboard_users')
-      .select('id, supabase_id, email, name, role, created_at')
+      .select('id, email, name, role, created_at')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -30,24 +30,31 @@ async function createUser(req, res) {
   }
 
   try {
+    console.log('📩 POST /api/users ->', req.body);
+
     // 1️⃣ Crear usuario en Supabase Auth (admin)
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
       password,
+      email_confirm: true, // <- evita necesidad de confirmación
     });
 
     if (authError) throw authError;
+    if (!authData?.user) throw new Error('No se pudo crear el usuario en Supabase Auth');
 
     const userId = authData.user.id;
+    console.log('✅ Usuario creado en Auth con ID:', userId);
 
     // 2️⃣ Crear fila en moodboard_users con info adicional
     const { data, error } = await supabase
       .from('moodboard_users')
-      .insert([{ supabase_id: userId, email, name, role }])
+      .insert([{ id: userId, email, name, role }])
       .select()
       .single();
 
     if (error) throw error;
+
+    console.log('✅ Usuario insertado en moodboard_users:', data);
 
     res.status(201).json(data);
   } catch (err) {
@@ -80,10 +87,9 @@ async function loginUser(req, res) {
     // 2️⃣ Obtener info adicional de moodboard_users
     const { data: appUser, error: userError } = await supabase
       .from('moodboard_users')
-      .select('id, supabase_id, email, name, role')
-      .eq('supabase_id', userId)
+      .select('id, email, name, role')
+      .eq('id', userId)  // 
       .single();
-
     if (userError) throw userError;
 
     // 3️⃣ Devolver usuario + token de Supabase
