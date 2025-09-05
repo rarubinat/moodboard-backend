@@ -13,10 +13,10 @@ async function getAllItems(req, res) {
 
 // POST crear item
 async function createItem(req, res) {
-  const { type, subtype, title, content, status, createdById } = req.body;
+  const { type, subtype, title, content, status } = req.body;
   const { data, error } = await supabase
     .from('moodboard_items')
-    .insert([{ type, subtype, title, content, status, created_by_id: createdById }])
+    .insert([{ type, subtype, title, content, status }])
     .select()
     .single();
 
