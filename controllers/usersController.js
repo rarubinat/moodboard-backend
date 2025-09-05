@@ -14,7 +14,7 @@ async function getUsers(req, res) {
 
     res.json(data);
   } catch (err) {
-    console.error(err);
+    console.error('Error getUsers:', err);
     res.status(500).json({ error: err.message });
   }
 }
@@ -31,17 +31,19 @@ async function createUser(req, res) {
 
   try {
     // 1️⃣ Crear usuario en Supabase Auth (admin)
-    const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
       password,
     });
 
     if (authError) throw authError;
 
+    const userId = authData.user.id;
+
     // 2️⃣ Crear fila en moodboard_users con info adicional
     const { data, error } = await supabase
       .from('moodboard_users')
-      .insert([{ supabase_id: authUser.id, email, name, role }])
+      .insert([{ supabase_id: userId, email, name, role }])
       .select()
       .single();
 
@@ -49,13 +51,13 @@ async function createUser(req, res) {
 
     res.status(201).json(data);
   } catch (err) {
-    console.error(err);
+    console.error('Error createUser:', err);
     res.status(500).json({ error: err.message });
   }
 }
 
 // -----------------------------
-// Login (devuelve usuario y token de sesión)
+// Login (devuelve usuario + token)
 // -----------------------------
 async function loginUser(req, res) {
   const { email, password } = req.body;
@@ -90,7 +92,7 @@ async function loginUser(req, res) {
       accessToken: sessionData.session.access_token,
     });
   } catch (err) {
-    console.error(err);
+    console.error('Error loginUser:', err);
     res.status(500).json({ error: err.message });
   }
 }
