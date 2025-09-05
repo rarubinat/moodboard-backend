@@ -1,31 +1,102 @@
 const supabase = require('../supabaseClient');
 
-// Obtener todos los usuarios
+// -----------------------------
+// Obtener todos los usuarios (sin contraseñas)
+// -----------------------------
 async function getUsers(req, res) {
-  const { data, error } = await supabase
-    .from('moodboard_users')
-    .select('*')
-    .order('created_at', { ascending: false });
+  try {
+    const { data, error } = await supabase
+      .from('moodboard_users')
+      .select('id, supabase_id, email, name, role, created_at')
+      .order('created_at', { ascending: false });
 
-  if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+    if (error) throw error;
+
+    res.json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
 }
 
-// Crear un nuevo usuario
+// -----------------------------
+// Crear un nuevo usuario (registro)
+// -----------------------------
 async function createUser(req, res) {
-  const { email, name, role } = req.body;
+  const { email, password, name, role } = req.body;
 
-  const { data, error } = await supabase
-    .from('moodboard_users')
-    .insert([{ email, name, role }])
-    .select()
-    .single();
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email y password son obligatorios' });
+  }
 
-  if (error) return res.status(500).json({ error: error.message });
-  res.status(201).json(data);
+  try {
+    // 1️⃣ Crear usuario en Supabase Auth (admin)
+    const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+    });
+
+    if (authError) throw authError;
+
+    // 2️⃣ Crear fila en moodboard_users con info adicional
+    const { data, error } = await supabase
+      .from('moodboard_users')
+      .insert([{ supabase_id: authUser.id, email, name, role }])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.status(201).json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+// -----------------------------
+// Login (devuelve usuario y token de sesión)
+// -----------------------------
+async function loginUser(req, res) {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email y password son obligatorios' });
+  }
+
+  try {
+    // 1️⃣ Autenticar con Supabase Auth
+    const { data: sessionData, error: loginError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (loginError) return res.status(401).json({ error: loginError.message });
+
+    const userId = sessionData.user.id;
+
+    // 2️⃣ Obtener info adicional de moodboard_users
+    const { data: appUser, error: userError } = await supabase
+      .from('moodboard_users')
+      .select('id, supabase_id, email, name, role')
+      .eq('supabase_id', userId)
+      .single();
+
+    if (userError) throw userError;
+
+    // 3️⃣ Devolver usuario + token de Supabase
+    res.json({
+      user: appUser,
+      accessToken: sessionData.session.access_token,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
 }
 
 module.exports = {
   getUsers,
   createUser,
+  loginUser,
 };
