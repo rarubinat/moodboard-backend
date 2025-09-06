@@ -3,8 +3,7 @@ const supabase = require('../supabaseClient');
 /** -----------------------------
  * Obtener todos los usuarios (sin contraseñas)
  * GET /api/users
- * -----------------------------
- */
+ * ----------------------------- */
 async function getUsers(req, res) {
   try {
     const { data, error } = await supabase
@@ -25,10 +24,34 @@ async function getUsers(req, res) {
 }
 
 /** -----------------------------
+ * Obtener un usuario por ID
+ * GET /api/users/:id
+ * ----------------------------- */
+async function getUserById(req, res) {
+  const { id } = req.params;
+  try {
+    const { data, error } = await supabase
+      .from('moodboard_users')
+      .select('id, email, name, role, created_at')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      console.error('Supabase getUserById error:', error);
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    res.json(data);
+  } catch (err) {
+    console.error('Unexpected getUserById error:', err);
+    res.status(500).json({ error: 'Error inesperado al obtener usuario' });
+  }
+}
+
+/** -----------------------------
  * Crear un nuevo usuario (registro)
  * POST /api/users/register
- * -----------------------------
- */
+ * ----------------------------- */
 async function createUser(req, res) {
   const { email, password, name, role } = req.body;
 
@@ -37,11 +60,11 @@ async function createUser(req, res) {
   }
 
   try {
-    // 1️⃣ Crear usuario en Supabase Auth (service role key requerida)
+    // 1️⃣ Crear usuario en Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
       password,
-      email_confirm: true, // evita confirmación de email
+      email_confirm: true,
     });
 
     if (authError) {
@@ -73,8 +96,7 @@ async function createUser(req, res) {
 /** -----------------------------
  * Login (devuelve usuario + token)
  * POST /api/users/login
- * -----------------------------
- */
+ * ----------------------------- */
 async function loginUser(req, res) {
   const { email, password } = req.body;
 
@@ -83,7 +105,7 @@ async function loginUser(req, res) {
   }
 
   try {
-    // 1️⃣ Autenticar usuario en Supabase Auth
+    // 1️⃣ Autenticar en Supabase Auth
     const { data: sessionData, error: loginError } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -121,6 +143,7 @@ async function loginUser(req, res) {
 
 module.exports = {
   getUsers,
+  getUserById,
   createUser,
   loginUser,
 };
