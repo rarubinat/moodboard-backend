@@ -1,8 +1,10 @@
 const supabase = require('../supabaseClient');
 
-// -----------------------------
-// Obtener todos los usuarios (sin contraseñas)
-// -----------------------------
+/** -----------------------------
+ * Obtener todos los usuarios (sin contraseñas)
+ * GET /api/users
+ * -----------------------------
+ */
 async function getUsers(req, res) {
   try {
     const { data, error } = await supabase
@@ -10,18 +12,23 @@ async function getUsers(req, res) {
       .select('id, email, name, role, created_at')
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase getUsers error:', error);
+      return res.status(500).json({ error: 'Error al obtener usuarios' });
+    }
 
     res.json(data);
   } catch (err) {
-    console.error('Error getUsers:', err);
-    res.status(500).json({ error: err.message });
+    console.error('Unexpected getUsers error:', err);
+    res.status(500).json({ error: 'Error inesperado al obtener usuarios' });
   }
 }
 
-// -----------------------------
-// Crear un nuevo usuario (registro)
-// -----------------------------
+/** -----------------------------
+ * Crear un nuevo usuario (registro)
+ * POST /api/users/register
+ * -----------------------------
+ */
 async function createUser(req, res) {
   const { email, password, name, role } = req.body;
 
@@ -30,42 +37,44 @@ async function createUser(req, res) {
   }
 
   try {
-    console.log('📩 POST /api/users ->', req.body);
-
-    // 1️⃣ Crear usuario en Supabase Auth (admin)
+    // 1️⃣ Crear usuario en Supabase Auth (service role key requerida)
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
       password,
-      email_confirm: true, // <- evita necesidad de confirmación
+      email_confirm: true, // evita confirmación de email
     });
 
-    if (authError) throw authError;
-    if (!authData?.user) throw new Error('No se pudo crear el usuario en Supabase Auth');
+    if (authError) {
+      console.error('Supabase Auth error:', authError);
+      return res.status(500).json({ error: 'No se pudo crear el usuario en Auth' });
+    }
 
     const userId = authData.user.id;
-    console.log('✅ Usuario creado en Auth con ID:', userId);
 
-    // 2️⃣ Crear fila en moodboard_users con info adicional
+    // 2️⃣ Guardar info adicional en moodboard_users
     const { data, error } = await supabase
       .from('moodboard_users')
       .insert([{ id: userId, email, name, role }])
       .select()
       .single();
 
-    if (error) throw error;
-
-    console.log('✅ Usuario insertado en moodboard_users:', data);
+    if (error) {
+      console.error('Supabase DB insert error:', error);
+      return res.status(500).json({ error: 'No se pudo guardar la información del usuario' });
+    }
 
     res.status(201).json(data);
   } catch (err) {
-    console.error('Error createUser:', err);
-    res.status(500).json({ error: err.message });
+    console.error('Unexpected createUser error:', err);
+    res.status(500).json({ error: 'Error inesperado al crear usuario' });
   }
 }
 
-// -----------------------------
-// Login (devuelve usuario + token)
-// -----------------------------
+/** -----------------------------
+ * Login (devuelve usuario + token)
+ * POST /api/users/login
+ * -----------------------------
+ */
 async function loginUser(req, res) {
   const { email, password } = req.body;
 
@@ -74,13 +83,16 @@ async function loginUser(req, res) {
   }
 
   try {
-    // 1️⃣ Autenticar con Supabase Auth
+    // 1️⃣ Autenticar usuario en Supabase Auth
     const { data: sessionData, error: loginError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    if (loginError) return res.status(401).json({ error: loginError.message });
+    if (loginError) {
+      console.error('Supabase login error:', loginError);
+      return res.status(401).json({ error: 'Credenciales inválidas' });
+    }
 
     const userId = sessionData.user.id;
 
@@ -88,18 +100,22 @@ async function loginUser(req, res) {
     const { data: appUser, error: userError } = await supabase
       .from('moodboard_users')
       .select('id, email, name, role')
-      .eq('id', userId)  // 
+      .eq('id', userId)
       .single();
-    if (userError) throw userError;
 
-    // 3️⃣ Devolver usuario + token de Supabase
+    if (userError) {
+      console.error('Supabase DB fetch user error:', userError);
+      return res.status(500).json({ error: 'No se pudo obtener la información del usuario' });
+    }
+
+    // 3️⃣ Devolver usuario + token
     res.json({
       user: appUser,
       accessToken: sessionData.session.access_token,
     });
   } catch (err) {
-    console.error('Error loginUser:', err);
-    res.status(500).json({ error: err.message });
+    console.error('Unexpected loginUser error:', err);
+    res.status(500).json({ error: 'Error inesperado al autenticar usuario' });
   }
 }
 
